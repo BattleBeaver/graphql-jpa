@@ -2,8 +2,8 @@ package org.crygier.graphql;
 
 import graphql.Scalars;
 import graphql.schema.*;
-import org.crygier.graphql.annotation.SchemaDocumentation;
 import org.crygier.graphql.annotation.GraphQLIgnore;
+import org.crygier.graphql.annotation.SchemaDocumentation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,6 +34,7 @@ public class GraphQLSchemaBuilder {
         GraphQLSchema.Builder schemaBuilder = GraphQLSchema.newSchema();
         schemaBuilder.query(getQueryType());
 
+        schemaBuilder.mutation(getMutationType());
         return schemaBuilder.build();
     }
 
@@ -41,6 +42,14 @@ public class GraphQLSchemaBuilder {
         GraphQLObjectType.Builder queryType = GraphQLObjectType.newObject().name("QueryType_JPA").description("All encompassing schema for this JPA environment");
         queryType.fields(entityManager.getMetamodel().getEntities().stream().filter(this::isNotIgnored).map(this::getQueryFieldDefinition).collect(Collectors.toList()));
         queryType.fields(entityManager.getMetamodel().getEntities().stream().filter(this::isNotIgnored).map(this::getQueryFieldPageableDefinition).collect(Collectors.toList()));
+
+
+        return queryType.build();
+    }
+
+    private GraphQLObjectType getMutationType() {
+        GraphQLObjectType.Builder queryType = GraphQLObjectType.newObject().name("MutationType_JPA").description("All encompassing mutation schema for this JPA environment");
+        queryType.fields(entityManager.getMetamodel().getEntities().stream().filter(this::isNotIgnored).map(this::getMutationFieldDefinition).collect(Collectors.toList()));
 
         return queryType.build();
     }
@@ -71,6 +80,14 @@ public class GraphQLSchemaBuilder {
                 .dataFetcher(new ExtendedJpaDataFetcher(entityManager, entityType))
                 .argument(paginationArgument)
                 .build();
+    }
+
+    private GraphQLFieldDefinition getMutationFieldDefinition(EntityType<?> entityType) {
+        return GraphQLFieldDefinition.newFieldDefinition()
+                .name("create" + entityType.getName())
+                .type(new GraphQLTypeReference(entityType.getName()))
+                .argument(entityType.getAttributes().stream().filter(this::isValidInput).filter(this::isNotIgnored).map(this::getArgument).collect(Collectors.toList()))
+                .dataFetcher(new MutationJPADataFetcher(entityManager, entityType)).build();
     }
 
     private GraphQLArgument getArgument(Attribute attribute) {
