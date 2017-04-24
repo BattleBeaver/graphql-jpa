@@ -2,7 +2,6 @@ package org.crygier.graphql;
 
 import graphql.language.*;
 import graphql.schema.DataFetchingEnvironment;
-import org.hibernate.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,9 +24,8 @@ public class MutationJPADataFetcher extends JpaDataFetcher {
 
     protected Object mutate(DataFetchingEnvironment environment, Field field) {
         try {
-            Class<?> entityClassType = (Class) entityType.getJavaType();
+            Class<?> entityClassType = entityType.getJavaType();
 
-            Session session = entityManager.unwrap(Session.class);
             Object entity = entityClassType.newInstance();
 
             field.getArguments().forEach(arg -> {
@@ -39,8 +37,8 @@ public class MutationJPADataFetcher extends JpaDataFetcher {
                     logger.error("Failed to mutate object", e);
                 }
             });
-            session.save(entity);
-            return entity;
+
+            return entityManager.merge(entity);
         } catch (Throwable e) {
             e.printStackTrace();
         }
